@@ -15,19 +15,21 @@
  */
 package com.arialyy.aria.core.download.downloader;
 
+import aria.apache.commons.net.ftp.FTPFile;
 import com.arialyy.aria.core.common.CompleteInfo;
 import com.arialyy.aria.core.common.OnFileInfoCallback;
 import com.arialyy.aria.core.common.ftp.AbsFtpInfoThread;
 import com.arialyy.aria.core.download.DownloadEntity;
 import com.arialyy.aria.core.download.DownloadTaskEntity;
+import com.arialyy.aria.exception.AriaIOException;
 import com.arialyy.aria.util.CommonUtil;
-import org.apache.commons.net.ftp.FTPFile;
 
 /**
  * Created by Aria.Lao on 2017/7/25.
  * 获取ftp文件信息
  */
 class FtpFileInfoThread extends AbsFtpInfoThread<DownloadEntity, DownloadTaskEntity> {
+  private final String TAG = "FtpFileInfoThread";
 
   FtpFileInfoThread(DownloadTaskEntity taskEntity, OnFileInfoCallback callback) {
     super(taskEntity, callback);
@@ -36,7 +38,9 @@ class FtpFileInfoThread extends AbsFtpInfoThread<DownloadEntity, DownloadTaskEnt
   @Override protected void handleFile(String remotePath, FTPFile ftpFile) {
     super.handleFile(remotePath, ftpFile);
     if (!CommonUtil.checkSDMemorySpace(mEntity.getDownloadPath(), ftpFile.getSize())) {
-      mCallback.onFail(mEntity.getUrl(), String.format("路径【%s】内存空间不足", mEntity.getDownloadPath()),
+      mCallback.onFail(mEntity.getUrl(),
+          new AriaIOException(TAG,
+              String.format("获取ftp文件信息失败，内存空间不足, filePath: %s", mEntity.getDownloadPath())),
           false);
     }
   }

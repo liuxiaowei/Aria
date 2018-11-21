@@ -24,6 +24,9 @@ import com.arialyy.aria.core.inf.AbsTaskEntity;
 import com.arialyy.aria.util.SSLContextUtil;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.CookieManager;
+import java.net.CookieStore;
+import java.net.HttpCookie;
 import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
@@ -111,7 +114,7 @@ class ConnectionHelp {
       }
     }
     if (conn.getRequestProperty("Accept-Language") == null) {
-      conn.setRequestProperty("Accept-Language", "UTF-8");
+      conn.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7");
     }
     if (conn.getRequestProperty("Accept-Encoding") == null) {
       conn.setRequestProperty("Accept-Encoding", "identity");
@@ -154,6 +157,16 @@ class ConnectionHelp {
     }
     //302获取重定向地址
     conn.setInstanceFollowRedirects(false);
+
+    CookieManager manager = entity.getCookieManager();
+    if (manager != null) {
+      CookieStore store = manager.getCookieStore();
+      if (store != null && store.getCookies().size() > 0) {
+        conn.setRequestProperty("Cookie",
+            TextUtils.join(";", store.getCookies()));
+      }
+    }
+
     return conn;
   }
 }

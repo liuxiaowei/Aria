@@ -15,7 +15,13 @@
  */
 package com.arialyy.aria.core.common.ftp;
 
+import android.os.Process;
 import android.text.TextUtils;
+import aria.apache.commons.net.ftp.FTP;
+import aria.apache.commons.net.ftp.FTPClient;
+import aria.apache.commons.net.ftp.FTPFile;
+import aria.apache.commons.net.ftp.FTPReply;
+import aria.apache.commons.net.ftp.FTPSClient;
 import com.arialyy.aria.core.AriaManager;
 import com.arialyy.aria.core.FtpUrlEntity;
 import com.arialyy.aria.core.common.OnFileInfoCallback;
@@ -23,6 +29,10 @@ import com.arialyy.aria.core.common.ProtocolType;
 import com.arialyy.aria.core.inf.AbsEntity;
 import com.arialyy.aria.core.inf.AbsTaskEntity;
 import com.arialyy.aria.core.upload.UploadEntity;
+import com.arialyy.aria.exception.AriaIOException;
+import com.arialyy.aria.exception.BaseException;
+import com.arialyy.aria.exception.FileException;
+import com.arialyy.aria.exception.TaskException;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.Regular;
 import com.arialyy.aria.util.SSLContextUtil;
@@ -33,11 +43,6 @@ import java.net.UnknownHostException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.net.ssl.SSLContext;
-import org.apache.commons.net.ftp.FTP;
-import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPFile;
-import org.apache.commons.net.ftp.FTPReply;
-import org.apache.commons.net.ftp.FTPSClient;
 
 /**
  * Created by Aria.Lao on 2017/7/25.
@@ -74,6 +79,7 @@ public abstract class AbsFtpInfoThread<ENTITY extends AbsEntity, TASK_ENTITY ext
   protected abstract String setRemotePath();
 
   @Override public void run() {
+    Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
     FTPClient client = null;
     try {
       client = createFtpClient();
@@ -90,8 +96,9 @@ public abstract class AbsFtpInfoThread<ENTITY extends AbsEntity, TASK_ENTITY ext
       FTPFile[] files = client.listFiles(remotePath);
       boolean isExist = files.length != 0;
       if (!isExist && !isUpload) {
-        failDownload(String.format("文件不存在，任务链接【%s】，remotePath：%s", mTaskEntity.getUrlEntity().url,
-            remotePath), false);
+        failDownload(new FileException(TAG,
+            String.format("文件不存在，url: %s, remotePath：%s", mTaskEntity.getUrlEntity().url,
+                remotePath)), false);
         int i = remotePath.lastIndexOf(File.separator);
         FTPFile[] files1;
         if (i == -1) {
@@ -122,8 +129,9 @@ public abstract class AbsFtpInfoThread<ENTITY extends AbsEntity, TASK_ENTITY ext
           mTaskEntity.setNewTask(true);
         } else {
           client.disconnect();
-          failDownload(String.format("获取文件信息错误，错误码为：%s，msg：%s", reply, client.getReplyString()),
-              true);
+          failDownload(new AriaIOException(TAG,
+              String.format("获取文件信息错误，url: %s, errorCode：%s, errorMsg：%s",
+                  mTaskEntity.getUrlEntity().url, reply, client.getReplyString())), true);
           return;
         }
       }
@@ -134,10 +142,9 @@ public abstract class AbsFtpInfoThread<ENTITY extends AbsEntity, TASK_ENTITY ext
       mTaskEntity.update();
       onPreComplete(reply);
     } catch (IOException e) {
-      e.printStackTrace();
-      ALog.e(TAG,
-          String.format("FTP错误信息，code：%s，msg：%s", client.getReplyCode(), client.getReplyString()));
-      failDownload(e.getMessage(), true);
+      failDownload(new AriaIOException(TAG,
+          String.format("FTP错误信息，code：%s，msg：%s", client.getReplyCode(), client.getReplyString()),
+          e), true);
     } finally {
       closeClient(client);
     }
@@ -195,7 +202,8 @@ public abstract class AbsFtpInfoThread<ENTITY extends AbsEntity, TASK_ENTITY ext
       }
 
       if (client == null) {
-        failDownload("链接失败", false);
+        failDownload(new AriaIOException(TAG,
+            String.format("链接失败, url: %s", mTaskEntity.getUrlEntity().url)), false);
         return null;
       }
 
@@ -208,15 +216,17 @@ public abstract class AbsFtpInfoThread<ENTITY extends AbsEntity, TASK_ENTITY ext
             loginSuccess = client.login(urlEntity.user, urlEntity.password, urlEntity.account);
           }
         } catch (IOException e) {
-          ALog.e(TAG, String.format("登录失败，错误码为：%s， msg：%s", client.getReplyCode(),
-              client.getReplyString()));
+          ALog.e(TAG,
+              new TaskException(TAG, String.format("登录失败，错误码为：%s， msg：%s", client.getReplyCode(),
+                  client.getReplyString()), e));
           return null;
         }
       }
 
       if (!loginSuccess) {
         failDownload(
-            String.format("登录失败，错误码为：%s， msg：%s", client.getReplyCode(), client.getReplyString()),
+            new TaskException(TAG, String.format("登录失败，错误码为：%s， msg：%s", client.getReplyCode(),
+                client.getReplyString())),
             false);
         client.disconnect();
         return null;
@@ -225,7 +235,9 @@ public abstract class AbsFtpInfoThread<ENTITY extends AbsEntity, TASK_ENTITY ext
       int reply = client.getReplyCode();
       if (!FTPReply.isPositiveCompletion(reply)) {
         client.disconnect();
-        failDownload(String.format("无法连接到ftp服务器，错误码为：%s，msg：%s", reply, client.getReplyString()),
+        failDownload(new AriaIOException(TAG,
+                String.format("无法连接到ftp服务器，filePath: %s, url: %s, errorCode: %s, errorMsg：%s",
+                    mEntity.getKey(), mTaskEntity.getUrlEntity().url, reply, client.getReplyString())),
             true);
         return null;
       }
@@ -353,10 +365,9 @@ public abstract class AbsFtpInfoThread<ENTITY extends AbsEntity, TASK_ENTITY ext
   protected void handleFile(String remotePath, FTPFile ftpFile) {
   }
 
-  private void failDownload(String errorMsg, boolean needRetry) {
-    ALog.e(TAG, errorMsg);
+  private void failDownload(BaseException e, boolean needRetry) {
     if (mCallback != null) {
-      mCallback.onFail(mEntity.getKey(), errorMsg, needRetry);
+      mCallback.onFail(mEntity.getKey(), e, needRetry);
     }
   }
 
