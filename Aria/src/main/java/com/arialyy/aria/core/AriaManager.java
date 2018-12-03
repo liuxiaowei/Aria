@@ -30,12 +30,15 @@ import com.arialyy.aria.core.command.ICmd;
 import com.arialyy.aria.core.common.QueueMod;
 import com.arialyy.aria.core.download.DownloadEntity;
 import com.arialyy.aria.core.download.DownloadGroupEntity;
+import com.arialyy.aria.core.download.DownloadGroupTaskEntity;
 import com.arialyy.aria.core.download.DownloadReceiver;
+import com.arialyy.aria.core.download.DownloadTaskEntity;
 import com.arialyy.aria.core.inf.AbsReceiver;
 import com.arialyy.aria.core.inf.IReceiver;
 import com.arialyy.aria.core.inf.ReceiverType;
 import com.arialyy.aria.core.upload.UploadEntity;
 import com.arialyy.aria.core.upload.UploadReceiver;
+import com.arialyy.aria.core.upload.UploadTaskEntity;
 import com.arialyy.aria.orm.DbEntity;
 import com.arialyy.aria.orm.DelegateWrapper;
 import com.arialyy.aria.util.ALog;
@@ -82,6 +85,7 @@ import org.xml.sax.SAXException;
     regAppLifeCallback(context);
     initConfig();
     initAria();
+    amendTaskState();
   }
 
   public static AriaManager getInstance(Context context) {
@@ -94,9 +98,6 @@ import org.xml.sax.SAXException;
   }
 
   static AriaManager getInstance() {
-    //if (INSTANCE == null) {
-    //  throw new NullPointerException("请在Application或Activity初始化时调用一次Aria.init(context)方法进行初始化操作");
-    //}
     return INSTANCE;
   }
 
@@ -121,6 +122,21 @@ import org.xml.sax.SAXException;
     mAConfig.setLogLevel(mAConfig.getLogLevel());
   }
 
+  /**
+   * 修正任务状态
+   */
+  private void amendTaskState() {
+    Class[] clazzs = new Class[] {
+        DownloadEntity.class, UploadEntity.class, DownloadGroupEntity.class,
+        DownloadTaskEntity.class, UploadTaskEntity.class, DownloadGroupTaskEntity.class
+    };
+    String sql = "UPDATE %s SET state=2 WHERE state IN (3,4,5,6)";
+    for (Class clazz : clazzs) {
+      String temp = String.format(sql, clazz.getSimpleName());
+      DbEntity.exeSql(temp);
+    }
+  }
+
   public Map<String, AbsReceiver> getReceiver() {
     return mReceivers;
   }
@@ -136,8 +152,7 @@ import org.xml.sax.SAXException;
    * @param mod {@link QueueMod}
    * @deprecated 后续版本会删除该api
    */
-  @Deprecated
-  public AriaManager setUploadQueueMod(QueueMod mod) {
+  @Deprecated public AriaManager setUploadQueueMod(QueueMod mod) {
     mUConfig.setQueueMod(mod.tag);
     return this;
   }
@@ -153,8 +168,7 @@ import org.xml.sax.SAXException;
    * @param mod {@link QueueMod}
    * @deprecated 后续版本会删除该api
    */
-  @Deprecated
-  public AriaManager setDownloadQueueMod(QueueMod mod) {
+  @Deprecated public AriaManager setDownloadQueueMod(QueueMod mod) {
     mDConfig.setQueueMod(mod.tag);
     return this;
   }
@@ -351,7 +365,8 @@ import org.xml.sax.SAXException;
    *
    * @param type {@link ReceiverType}
    * @param obj 观察者对象
-   * @return key的格式为：{@code String.format("%s_%s_%s", obj.getClass().getName(), type, obj.hashCode());}
+   * @return key的格式为：{@code String.format("%s_%s_%s", obj.getClass().getName(), type,
+   * obj.hashCode());}
    */
   private String createKey(@ReceiverType String type, Object obj) {
     return String.format("%s_%s_%s", obj.getClass().getName(), type, obj.hashCode());
@@ -361,6 +376,10 @@ import org.xml.sax.SAXException;
    * 初始化配置文件
    */
   private void initConfig() {
+    mDConfig = Configuration.getInstance().downloadCfg;
+    mUConfig = Configuration.getInstance().uploadCfg;
+    mAConfig = Configuration.getInstance().appCfg;
+
     File xmlFile = new File(APP.getFilesDir().getPath() + Configuration.XML_FILE);
     File tempDir = new File(APP.getFilesDir().getPath() + "/temp");
     if (!xmlFile.exists()) {
@@ -374,16 +393,13 @@ import org.xml.sax.SAXException;
         }
         CommonUtil.createFileFormInputStream(APP.getAssets().open("aria_config.xml"),
             file.getPath());
-        if (!CommonUtil.checkMD5(md5Code, file)) {
+        if (!CommonUtil.checkMD5(md5Code, file) || !Configuration.getInstance().configExists()) {
           loadConfig();
         }
       } catch (IOException e) {
         e.printStackTrace();
       }
     }
-    mDConfig = Configuration.DownloadConfig.getInstance();
-    mUConfig = Configuration.UploadConfig.getInstance();
-    mAConfig = Configuration.AppConfig.getInstance();
     if (tempDir.exists()) {
       File newDir = new File(APP.getFilesDir().getPath() + DOWNLOAD_TEMP_DIR);
       newDir.mkdirs();

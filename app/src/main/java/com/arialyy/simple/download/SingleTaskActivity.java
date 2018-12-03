@@ -47,21 +47,21 @@ import java.util.Map;
 
 public class SingleTaskActivity extends BaseActivity<ActivitySingleBinding> {
 
-  private static final String DOWNLOAD_URL =
+  private String DOWNLOAD_URL =
       //"http://kotlinlang.org/docs/kotlin-docs.pdf";
       //"https://atom-installer.github.com/v1.13.0/AtomSetup.exe?s=1484074138&ext=.exe";
       //"http://static.gaoshouyou.com/d/22/94/822260b849944492caadd2983f9bb624.apks";
-      //"http://120.55.95.61:8811/ghcg/zg/武义总规纲要成果.zip";
-  //"https://yizi-kejian.oss-cn-beijing.aliyuncs.com/qimeng/package1/qmtable11.zip";
-  //"http://rs.0.gaoshouyou.com/d/04/1e/400423a7551e1f3f0eb1812afa1f9b44.apk";
+      "http://120.55.95.61:8811/ghcg/zg/武义总规纲要成果.zips";
+      //"https://yizi-kejian.oss-cn-beijing.aliyuncs.com/qimeng/package1/qmtable11.zip";
+      //"http://rs.0.gaoshouyou.com/d/04/1e/400423a7551e1f3f0eb1812afa1f9b44.apk";
       //"http://58.210.9.131/tpk/sipgt//TDLYZTGH.tpk"; //chunked 下载
-      //"https://static.donguo.me//video/ip/course/pfys_1.mp4";
-      //"https://www.baidu.com/link?url=_LFCuTPtnzFxVJByJ504QymRywIA1Z_T5xUxe9ZLuxcGM0C_RcdpWyB1eGjbJC-e5wv5wAKM4WmLMAS5KeF6EZJHB8Va3YqZUiaErqK_pxm&wd=&eqid=e8583fe70002d126000000065a99f864";
-      //"https://d.pcs.baidu.com/file/a02c89a2d479d4fd2756f3313d42491d?fid=4232431903-250528-1114369760340736&dstime=1525491372&rt=sh&sign=FDtAERVY-DCb740ccc5511e5e8fedcff06b081203-3C13vkOkuk4TqXvVYW05zj1K0ao%3D&expires=8h&chkv=1&chkbd=0&chkpc=et&dp-logid=8651730921842106225&dp-callid=0&r=165533013";
-      //"http://apk500.bce.baidu-mgame.com/game/67000/67734/20170622040827_oem_5502845.apk?r=1";
-      //"https://dl.genymotion.com/releases/genymotion-2.12.1/genymotion-2.12.1-vbox.exe";
-      //"http://9.9.9.59:5000/download/CentOS-7-x86_64-Minimal-1804.iso";
-      "https://firmwareapi.azurewebsites.net/firmware-overview?name=A19_Filament_W_IMG0038_00102411-encrypted.ota";
+      //"https://static.donguo.me/video/ip/course/pfys_1.mp4";
+  //"https://www.baidu.com/link?url=_LFCuTPtnzFxVJByJ504QymRywIA1Z_T5xUxe9ZLuxcGM0C_RcdpWyB1eGjbJC-e5wv5wAKM4WmLMAS5KeF6EZJHB8Va3YqZUiaErqK_pxm&wd=&eqid=e8583fe70002d126000000065a99f864";
+  //"https://d.pcs.baidu.com/file/a02c89a2d479d4fd2756f3313d42491d?fid=4232431903-250528-1114369760340736&dstime=1525491372&rt=sh&sign=FDtAERVY-DCb740ccc5511e5e8fedcff06b081203-3C13vkOkuk4TqXvVYW05zj1K0ao%3D&expires=8h&chkv=1&chkbd=0&chkpc=et&dp-logid=8651730921842106225&dp-callid=0&r=165533013";
+  //"http://apk500.bce.baidu-mgame.com/game/67000/67734/20170622040827_oem_5502845.apk?r=1";
+  //"https://dl.genymotion.com/releases/genymotion-2.12.1/genymotion-2.12.1-vbox.exe";
+  //"http://9.9.9.59:5000/download/CentOS-7-x86_64-Minimal-1804.iso";
+  //"https://firmwareapi.azurewebsites.net/firmware-overview?name=A19_Filament_W_IMG0038_00102411-encrypted.ota";
   @Bind(R.id.start) Button mStart;
   @Bind(R.id.stop) Button mStop;
   @Bind(R.id.cancel) Button mCancel;
@@ -70,14 +70,15 @@ public class SingleTaskActivity extends BaseActivity<ActivitySingleBinding> {
   @Override protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     Aria.download(this).register();
+    Log.d(TAG, "TAG========" + Aria.download(this).load(DOWNLOAD_URL).getTaskState() + "");
   }
 
   /**
    * 设置start 和 stop 按钮状态
    */
   private void setBtState(boolean state) {
-    mStart.setEnabled(state);
-    mStop.setEnabled(!state);
+    //mStart.setEnabled(state);
+    //mStop.setEnabled(!state);
   }
 
   @Override public boolean onCreateOptionsMenu(Menu menu) {
@@ -140,7 +141,7 @@ public class SingleTaskActivity extends BaseActivity<ActivitySingleBinding> {
 
   @Download.onTaskRunning protected void running(DownloadTask task) {
     ALog.d(TAG, String.format("%s_running_%s", getClass().getName(), hashCode()));
-    if (task.getKey().equals(DOWNLOAD_URL)) {
+    //if (task.getKey().equals(DOWNLOAD_URL)) {
       //Log.d(TAG, task.getKey());
       long len = task.getFileSize();
       if (len == 0) {
@@ -149,7 +150,7 @@ public class SingleTaskActivity extends BaseActivity<ActivitySingleBinding> {
         getBinding().setProgress(task.getPercent());
       }
       getBinding().setSpeed(task.getConvertSpeed());
-    }
+    //}
   }
 
   @Download.onTaskResume void taskResume(DownloadTask task) {
@@ -178,34 +179,45 @@ public class SingleTaskActivity extends BaseActivity<ActivitySingleBinding> {
     }
   }
 
+  /**
+   *
+   * @param task
+   * @param e
+   */
   @Download.onTaskFail void taskFail(DownloadTask task, Exception e) {
     if (task.getKey().equals(DOWNLOAD_URL)) {
       Toast.makeText(SingleTaskActivity.this, "下载失败", Toast.LENGTH_SHORT).show();
       setBtState(true);
+      Aria.download(this)
+          .load(DOWNLOAD_URL)
+          .updateUrl("http://120.55.95.61:8811/ghcg/zg/武义总规纲要成果.zip")
+          .start();
+      //DOWNLOAD_URL = "http://120.55.95.61:8811/ghcg/zg/武义总规纲要成果.zip";
       //ALog.d(TAG, ALog.getExceptionString(e));
     }
   }
 
   @Download.onTaskComplete void taskComplete(DownloadTask task) {
-    if (task.getKey().equals(DOWNLOAD_URL)) {
+    //if (task.getKey().equals(DOWNLOAD_URL)) {
       getBinding().setProgress(100);
       Toast.makeText(SingleTaskActivity.this, "下载完成", Toast.LENGTH_SHORT).show();
       mStart.setText("重新开始？");
-      mCancel.setEnabled(false);
+      //mCancel.setEnabled(false);
       setBtState(true);
       getBinding().setSpeed("");
       L.d(TAG, "path ==> " + task.getDownloadEntity().getDownloadPath());
       L.d(TAG, "md5Code ==> " + CommonUtil.getFileMD5(new File(task.getDownloadPath())));
       L.d(TAG, "data ==> " + Aria.download(this).getDownloadEntity(DOWNLOAD_URL));
-      Intent install = new Intent(Intent.ACTION_VIEW);
-      install.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-      File apkFile = new File(task.getDownloadPath());
-      install.setDataAndType(Uri.fromFile(apkFile), "application/vnd.android.package-archive");
-      startActivity(install);
-    }
+      //Intent install = new Intent(Intent.ACTION_VIEW);
+      //install.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      //File apkFile = new File(task.getDownloadPath());
+      //install.setDataAndType(Uri.fromFile(apkFile), "application/vnd.android.package-archive");
+      //startActivity(install);
+    //}
   }
 
   @Download.onNoSupportBreakPoint public void onNoSupportBreakPoint(DownloadTask task) {
+    Log.d(TAG, "该下载链接不支持断点");
     if (task.getKey().equals(DOWNLOAD_URL)) {
       T.showShort(SingleTaskActivity.this, "该下载链接不支持断点");
     }
@@ -252,7 +264,8 @@ public class SingleTaskActivity extends BaseActivity<ActivitySingleBinding> {
   private void startD() {
     //Aria.get(this).setLogLevel(ALog.LOG_CLOSE);
     //Aria.download(this).load("aaaa.apk");
-    String path = Environment.getExternalStorageDirectory().getPath() + "/ggsg11.ota";
+    //String path = Environment.getExternalStorageDirectory().getPath() + "/ggsg11.ota";
+    String path = "/sdcard/ggsg11.mp4";
     //File file = new File(path);
     //if (file.exists()){
     //  file.delete();
@@ -261,7 +274,7 @@ public class SingleTaskActivity extends BaseActivity<ActivitySingleBinding> {
     Aria.download(SingleTaskActivity.this)
         .load(DOWNLOAD_URL)
         //.addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8")
-        .addHeader("Accept-Encoding", "gzip, deflate")
+        //.addHeader("Accept-Encoding", "gzip, deflate")
         //.addHeader("DNT", "1")
         //.addHeader("Cookie", "BAIDUID=648E5FF020CC69E8DD6F492D1068AAA9:FG=1; BIDUPSID=648E5FF020CC69E8DD6F492D1068AAA9; PSTM=1519099573; BD_UPN=12314753; locale=zh; BDSVRTM=0")
         .useServerFileName(true)

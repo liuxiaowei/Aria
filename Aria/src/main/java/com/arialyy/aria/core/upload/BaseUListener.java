@@ -42,15 +42,8 @@ class BaseUListener extends BaseListener<UploadEntity, UploadTaskEntity, UploadT
     mEntity.setComplete(state == IEntity.STATE_COMPLETE);
     if (state == IEntity.STATE_CANCEL) {
       if (mEntity instanceof UploadEntity) {
-        TaskRecord record =
-            DbEntity.findFirst(TaskRecord.class, "TaskRecord.filePath=?", mTaskEntity.getKey());
-        if (record != null) {
-          CommonUtil.delTaskRecord(record, mTaskEntity.isRemoveFile(), mEntity);
-        }
+        CommonUtil.delTaskRecord(mEntity.getFilePath(), 2, mTaskEntity.isRemoveFile());
       }
-      //else if (mEntity instanceof AbsGroupEntity) {
-      //  CommonUtil.delGroupTaskRecord(mTaskEntity.isRemoveFile(), ((AbsGroupEntity) mEntity));
-      //}
       return;
     } else if (state == IEntity.STATE_STOP) {
       mEntity.setStopTime(System.currentTimeMillis());

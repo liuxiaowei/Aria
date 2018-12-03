@@ -27,7 +27,7 @@ import com.arialyy.aria.util.CommonUtil;
 /**
  * 下载监听类
  */
-class BaseDListener extends BaseListener<DownloadEntity, DownloadTaskEntity, DownloadTask>
+public class BaseDListener extends BaseListener<DownloadEntity, DownloadTaskEntity, DownloadTask>
     implements IDownloadListener {
   private static final String TAG = "BaseDListener";
 
@@ -45,7 +45,9 @@ class BaseDListener extends BaseListener<DownloadEntity, DownloadTaskEntity, Dow
   }
 
   @Override public void supportBreakpoint(boolean support) {
-
+    if (!support) {
+      sendInState2Target(ISchedulers.NO_SUPPORT_BREAK_POINT);
+    }
   }
 
   @Override
@@ -55,13 +57,7 @@ class BaseDListener extends BaseListener<DownloadEntity, DownloadTaskEntity, Dow
     mEntity.setComplete(state == IEntity.STATE_COMPLETE);
     if (state == IEntity.STATE_CANCEL) {
       if (mEntity instanceof DownloadEntity) {
-        TaskRecord record =
-            DbEntity.findFirst(TaskRecord.class, "TaskRecord.filePath=?", mTaskEntity.getKey());
-        if (record != null) {
-          CommonUtil.delTaskRecord(record, mTaskEntity.isRemoveFile(), mEntity);
-        } else {
-          mEntity.deleteData();
-        }
+        CommonUtil.delTaskRecord(mEntity.getDownloadPath(), 1, mTaskEntity.isRemoveFile());
       }
       return;
     } else if (state == IEntity.STATE_STOP) {
