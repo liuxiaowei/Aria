@@ -50,6 +50,9 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -71,11 +74,105 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Created by lyy on 2016/1/22.
- * 通用工具
+ * Created by lyy on 2016/1/22. 通用工具
  */
 public class CommonUtil {
   private static final String TAG = "CommonUtil";
+
+  /**
+   * 删除文件
+   * @param path  文件路径
+   * @return  {@code true}删除成功、{@code false}删除失败
+   */
+  public static boolean deleteFile(String path){
+    if (TextUtils.isEmpty(path)){
+      ALog.e(TAG, "删除文件失败，路径为空");
+      return false;
+    }
+    File file = new File(path);
+    if (file.exists()) {
+      final File to = new File(file.getAbsolutePath() + System.currentTimeMillis());
+      if (file.renameTo(to)) {
+        return to.delete();
+      } else {
+        return file.delete();
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 将对象写入文件
+   *
+   * @param filePath 文件路径
+   * @param data data数据必须实现{@link Serializable}接口
+   */
+  public static void writeObjToFile(String filePath, Object data) {
+    if (!(data instanceof Serializable)) {
+      ALog.e(TAG, "对象写入文件失败，data数据必须实现Serializable接口");
+      return;
+    }
+    FileOutputStream ops = null;
+    try {
+      if (!createFile(filePath)) {
+        return;
+      }
+      ops = new FileOutputStream(filePath);
+      ObjectOutputStream oops = new ObjectOutputStream(ops);
+      oops.writeObject(data);
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    } catch (IOException e) {
+      e.printStackTrace();
+    } finally {
+      if (ops != null) {
+        try {
+          ops.close();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+  }
+
+  /**
+   * 从文件中读取对象
+   *
+   * @param filePath 文件路径
+   * @return 如果读取成功，返回相应的Obj对象，读取失败，返回null
+   */
+  public static Object readObjFromFile(String filePath) {
+    if (TextUtils.isEmpty(filePath)) {
+      ALog.e(TAG, "文件路径为空");
+      return null;
+    }
+    File file = new File(filePath);
+    if (!file.exists()) {
+      ALog.e(TAG, String.format("文件【%s】不存在", filePath));
+      return null;
+    }
+    FileInputStream fis = null;
+    try {
+      fis = new FileInputStream(filePath);
+      ObjectInputStream oois = new ObjectInputStream(fis);
+      return oois.readObject();
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    } catch (IOException e) {
+      e.printStackTrace();
+    } catch (ClassNotFoundException e) {
+      e.printStackTrace();
+    } finally {
+      if (fis != null) {
+        try {
+          fis.close();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+    return null;
+  }
 
   /**
    * 获取分块文件的快大小
@@ -483,8 +580,7 @@ public class CommonUtil {
   /**
    * 删除任务组记录
    *
-   * @param removeFile {@code true} 不仅删除任务数据库记录，还会删除已经删除完成的文件
-   * {@code false}如果任务已经完成，只删除任务数据库记录
+   * @param removeFile {@code true} 不仅删除任务数据库记录，还会删除已经删除完成的文件 {@code false}如果任务已经完成，只删除任务数据库记录
    */
   public static void delGroupTaskRecord(boolean removeFile, DownloadGroupEntity groupEntity) {
     if (groupEntity == null) {
@@ -533,8 +629,7 @@ public class CommonUtil {
   /**
    * 删除任务记录
    *
-   * @param removeFile {@code true} 不仅删除任务数据库记录，还会删除已经完成的文件
-   * {@code false}如果任务已经完成，只删除任务数据库记录
+   * @param removeFile {@code true} 不仅删除任务数据库记录，还会删除已经完成的文件 {@code false}如果任务已经完成，只删除任务数据库记录
    */
   public static void delTaskRecord(TaskRecord record, boolean removeFile, AbsNormalEntity dEntity) {
     if (dEntity == null) return;
@@ -573,10 +668,10 @@ public class CommonUtil {
    * 删除任务记录，默认删除文件
    *
    * @param filePath 文件路径
-   * @param type {@code 1}下载任务的记录，{@code 2} 上传任务的记录
-   * {@code false}如果任务已经完成，只删除任务数据库记录
+   * @param removeFile {@code true} 不仅删除任务数据库记录，还会删除已经删除完成的文件 {@code false}如果任务已经完成，只删除任务数据库记录
+   * @param type {@code 1}下载任务的记录，{@code 2} 上传任务的记录 {@code false}如果任务已经完成，只删除任务数据库记录
    */
-  public static void delTaskRecord(String filePath, int type) {
+  public static void delTaskRecord(String filePath, int type, boolean removeFile) {
     if (TextUtils.isEmpty(filePath)) {
       throw new NullPointerException("删除记录失败，文件路径为空");
     }
@@ -584,33 +679,43 @@ public class CommonUtil {
       throw new IllegalArgumentException("任务记录类型错误");
     }
     TaskRecord record = DbEntity.findFirst(TaskRecord.class, "filePath=?", filePath);
-    if (record == null) {
-      ALog.w(TAG, "删除记录失败，记录为空");
-      return;
-    }
     File file = new File(filePath);
-    // 删除分块文件
-    if (record.isBlock) {
-      for (int i = 0, len = record.threadNum; i < len; i++) {
-        File partFile = new File(String.format(AbsFileer.SUB_PATH, record.filePath, i));
-        if (partFile.exists()) {
-          partFile.delete();
+    if (record == null) {
+      ALog.w(TAG, "记录为空");
+    } else {
+      // 删除分块文件
+      if (record.isBlock) {
+        for (int i = 0, len = record.threadNum; i < len; i++) {
+          File partFile = new File(String.format(AbsFileer.SUB_PATH, record.filePath, i));
+          if (partFile.exists()) {
+            partFile.delete();
+          }
         }
       }
+
+      record.deleteData();
     }
-    if (file.exists()) {
+    if (file.exists() && removeFile) {
       file.delete();
     }
-
-    record.deleteData();
     //下载任务实体和下载实体为一对一关系，下载实体删除，任务实体自动删除
     if (type == 1) {
       DbEntity.deleteData(DownloadTaskEntity.class, "key=?", filePath);
       DbEntity.deleteData(DownloadEntity.class, "downloadPath=?", filePath);
-    }else {
+    } else {
       DbEntity.deleteData(UploadTaskEntity.class, "key=?", filePath);
       DbEntity.deleteData(UploadEntity.class, "filePath=?", filePath);
     }
+  }
+
+  /**
+   * 删除任务记录，默认删除文件
+   *
+   * @param filePath 文件路径
+   * @param type {@code 1}下载任务的记录，{@code 2} 上传任务的记录 {@code false}如果任务已经完成，只删除任务数据库记录
+   */
+  public static void delTaskRecord(String filePath, int type) {
+    delTaskRecord(filePath, type, false);
   }
 
   /**
@@ -983,14 +1088,14 @@ public class CommonUtil {
   }
 
   /**
-   * 创建文件
-   * 当文件不存在的时候就创建一个文件。
-   * 如果文件存在，先删除原文件，然后重新创建一个新文件
+   * 创建文件 当文件不存在的时候就创建一个文件。 如果文件存在，先删除原文件，然后重新创建一个新文件
+   *
+   * @return {@code true} 创建成功、{@code false} 创建失败
    */
-  public static void createFile(String path) {
+  public static boolean createFile(String path) {
     if (TextUtils.isEmpty(path)) {
       ALog.e(TAG, "文件路径不能为null");
-      return;
+      return false;
     }
     File file = new File(path);
     if (file.getParentFile() == null || !file.getParentFile().exists()) {
@@ -1011,10 +1116,13 @@ public class CommonUtil {
     try {
       if (file.createNewFile()) {
         ALog.d(TAG, "创建文件成功:" + file.getAbsolutePath());
+        return true;
       }
     } catch (IOException e) {
       e.printStackTrace();
+      return false;
     }
+    return false;
   }
 
   /**
