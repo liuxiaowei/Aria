@@ -27,6 +27,7 @@ import butterknife.Bind;
 import com.arialyy.annotations.Download;
 import com.arialyy.annotations.DownloadGroup;
 import com.arialyy.aria.core.Aria;
+import com.arialyy.aria.core.download.DownloadEntity;
 import com.arialyy.aria.core.download.DownloadGroupTask;
 import com.arialyy.aria.core.download.DownloadTask;
 import com.arialyy.aria.util.ALog;
@@ -61,6 +62,7 @@ public class MultiTaskActivity extends BaseActivity<ActivityMultiBinding> {
     mAdapter = new FileListAdapter(this, mData);
     mList.setLayoutManager(new LinearLayoutManager(this));
     mList.setAdapter(mAdapter);
+    DownloadEntity.findDataByFuzzy(DownloadEntity.class,"fileName liek abc123%");
   }
 
   public void onClick(View view) {
@@ -79,32 +81,51 @@ public class MultiTaskActivity extends BaseActivity<ActivityMultiBinding> {
     }
   }
 
+  private void log(String msg){
+    Log.e("tag",msg);
+  }
+
+  @Download.onPre void pre(DownloadTask task){
+    log("onPre");
+  }
+
+  @Download.onTaskPre void taskPre(DownloadTask task){
+    log("onTaskPre");
+  }
+
   @Download.onWait void taskWait(DownloadTask task){
     Log.d(TAG, "wait ==> " + task.getDownloadEntity().getFileName());
+    log("onWait");
   }
 
   @Download.onTaskStart void taskStart(DownloadTask task) {
     mAdapter.updateBtState(task.getKey(), false);
+    log("onTaskStart");
   }
 
   @Download.onTaskResume void taskResume(DownloadTask task) {
     mAdapter.updateBtState(task.getKey(), false);
+    log("onTaskResume");
   }
 
   @Download.onTaskStop void taskStop(DownloadTask task) {
     mAdapter.updateBtState(task.getKey(), true);
+    log("onTaskStop");
   }
 
   @Download.onTaskCancel void taskCancel(DownloadTask task) {
     mAdapter.updateBtState(task.getKey(), true);
+    log("onTaskCancel");
   }
 
   @Download.onTaskFail void taskFail(DownloadTask task) {
     mAdapter.updateBtState(task.getKey(), true);
+    log("onTaskFail");
   }
 
   @Download.onTaskComplete void taskComplete(DownloadTask task){
     Log.d(TAG, FileUtil.getFileMD5(new File(task.getDownloadPath())));
+    log("onTaskComplete");
   }
 
   //############################### 任务组 ##############################
